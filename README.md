@@ -15,7 +15,7 @@
 Praktikum Minggu 06 (SIPUS-Del Tahap 2) berfokus pada pengembangan modul sirkulasi peminjaman, autentikasi pustakawan, pengelolaan sesi, serta penerapan mekanisme transaksi basis data ACID (*Atomicity, Consistency, Isolation, Durability*) dengan penguncian baris (*pessimistic locking*) menggunakan `lockForUpdate()`.
 
 **Cakupan Implementasi Fitur:**
-1. **Autentikasi Pustakawan & Keamanan Sesi**: Proteksi rute dengan middleware `auth`, regenerasi ID sesi (`$request->session()->regenerate()`), dan manajemen Cookie aman berAtribut `HttpOnly` serta `SameSite=Lax`[cite: 2, 3, 6, 7].
+1. **Autentikasi Pustakawan & Keamanan Sesi**: Proteksi rute dengan middleware `auth`, regenerasi ID sesi (`$request->session()->regenerate()`), dan manajemen Cookie aman berAtribut `HttpOnly` serta `SameSite=Lax`.
 2. **Sirkulasi Peminjaman (ACID Protected)**: Eksekusi transaksi peminjaman & pengembalian atomik via `DB::transaction()` dengan `lockForUpdate()` untuk mencegah *race condition* stok buku serta *rollback* otomatis jika stok habis.
 3. **Katalog & Analytics Perpustakaan**: Statistik ringkasan menggunakan Fluent Query Builder (`DB::table`) dan pemetaan agregasi relasi `withCount('peminjamans')`.
 
