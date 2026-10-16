@@ -1,21 +1,23 @@
-# SIPUS-Del (Sistem Informasi Perpustakaan)
-Tugas Praktikum Minggu 5 PPW - Theresia Oktaviani Samosir (12S24055)
+## Laporan & Bukti Pengujian Praktikum Minggu 06 (SIPUS-Del Tahap 2)
 
-## Fitur Utama
-- Arsitektur MVC terpisah untuk entitas Buku dan Kategori.
-- Proteksi Mass Assignment menggunakan properti `$fillable`.
-- Routing RESTful dengan Validasi Form Sisi Server (Server-Side Validation).
-- UI menggunakan Blade Components dengan tema warna institut.
+### 1. Pengujian Transaksi ACID & Pessimistic Locking (`lockForUpdate`)
 
-## Bukti Audit Optimasi Kinerja (Eager Loading)
-Implementasi Eager Loading melalui `Buku::with('kategori')` berhasil mereduksi N+1 Query Problem pada pemuatan relasi data. Alih-alih mengeksekusi kueri kategori berulang kali untuk setiap baris buku, sistem mengompresinya menjadi satu kueri efisien menggunakan klausa `IN`. 
+#### A. Penolakan Peminjaman Saat Stok Buku Habis (Stok = 0)
+Sistem melakukan penguncian baris (*pessimistic lock*) menggunakan `lockForUpdate()` dalam transaksi `DB::transaction()`. Ketika stok buku 0, sistem melempar `RuntimeException` dan melakukan *rollback* otomatis sehingga transaksi dibatalkan dengan aman.
 
-Berikut adalah rekaman log SQL dari sistem saat memuat halaman index katalog buku dan melakukan paginasi:
+![Pengujian Penolakan Stok Habis](docs/acid-rollback-test.png)
 
-```text
-[2026-10-09 08:59:12] local.INFO: [SQL AUDIT] (13.82 ms) select count(*) as `aggregate` from `bukus`  
-[2026-10-09 08:59:12] local.INFO: [SQL AUDIT] (1.44 ms) select * from `bukus` order by `created_at` desc limit 10 offset 0  
-[2026-10-09 08:59:12] local.INFO: [SQL AUDIT] (1.54 ms) select * from `kategoris` where `kategoris`.`id` in (1, 2, 4, 5)  
-[2026-10-09 08:59:22] local.INFO: [SQL AUDIT] (5.77 ms) select count(*) as `aggregate` from `bukus`  
-[2026-10-09 08:59:22] local.INFO: [SQL AUDIT] (1.19 ms) select * from `bukus` order by `created_at` desc limit 10 offset 10  
-[2026-10-09 08:59:22] local.INFO: [SQL AUDIT] (1.28 ms) select * from `kategoris` where `kategoris`.`id` in (2, 3, 4, 5)
+#### B. Transaksi Peminjaman Berhasil (Stok > 0)
+Saat stok tersedia, sistem mengurangi stok secara atomik dan mencatat histori peminjaman secara konsisten.
+
+![Pengujian Transaksi Sukses](docs/acid-success-test.png)
+
+---
+
+### 2. Audit Keamanan Sesi & Cookie (`HttpOnly`)
+
+Berdasarkan pemeriksaan pada browser DevTools (Tab **Application** -> **Cookies**):
+- **`laravel_session`**: Terkonfigurasi dengan atribut **`HttpOnly`** dan **`SameSite=Lax`** untuk mencegah ancaman pencurian sesi via serangan *Cross-Site Scripting* (XSS) dan *Cross-Site Request Forgery* (CSRF)[cite: 3].
+- **`sipus_last_librarian`**: Cookie pengingat pustakawan yang dikirim via `Cookie::queue()`[cite: 6].
+
+![Audit Cookie HttpOnly di DevTools](docs/cookie-audit.png)
