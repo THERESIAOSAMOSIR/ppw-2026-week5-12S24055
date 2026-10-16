@@ -1,45 +1,58 @@
 # SIPUS-Del (Sistem Informasi Perpustakaan Del) - Tahap 2
-
-Proyek praktikum Pemrograman & Pengujian Web (PPW) Minggu 06 untuk mengembangkan modul sirkulasi peminjaman, autentikasi pustakawan, serta manajemen transaksi basis data ACID dengan penguncian baris (*pessimistic locking*).
-
----
-
-## Ringkasan Fitur Utama
-
-1. **Autentikasi Pustakawan & Keamanan Sesi**:
-   - Proteksi rute dengan middleware `auth` dan regenerasi ID sesi untuk mencegah *Session Fixation*[cite: 6, 7].
-   - Penggunaan Cookie berAtribut `HttpOnly` dan `SameSite=Lax` untuk mencegah ancaman pencurian sesi via XSS[cite: 2, 3].
-
-2. **Sirkulasi Peminjaman & Transaksi ACID**:
-   - Implementasi `DB::transaction()` dan penguncian baris `lockForUpdate()` untuk mencegah *race condition* stok buku[cite: 3, 5, 6].
-   - Fitur otomatisasi status transaksi dan *rollback* ketika stok tidak mencukupi[cite: 3, 5, 6].
-
-3. **Katalog & Analytics Perpustakaan**:
-   - Rekapitulasi statistik menggunakan Fluent Query Builder (`DB::table`)[cite: 5, 6].
-   - Agregasi relasi dengan `withCount('peminjamans')` pada katalog buku[cite: 5, 6].
+**Modul Praktikum Pemrograman & Pengujian Web (PPW) - Minggu 06**
 
 ---
 
-## Laporan & Bukti Pengujian Praktikum Minggu 06
-
-### 1. Pengujian Transaksi ACID & Pessimistic Locking (`lockForUpdate`)
-
-#### A. Penolakan Peminjaman Saat Stok Buku Habis (Stok = 0)
-Sistem melakukan penguncian baris (*pessimistic lock*) menggunakan `lockForUpdate()` di dalam transaksi `DB::transaction()`. Ketika stok buku 0, sistem melempar `RuntimeException` dan melakukan *rollback* otomatis sehingga transaksi dibatalkan secara aman[cite: 3, 5, 6].
-
-![Pengujian Penolakan Stok Habis](screenshots/acid-rollback-test.png)
-
-#### B. Transaksi Peminjaman Berhasil (Stok > 0)
-Saat stok tersedia, sistem mengurangi stok secara atomik dan mencatat histori sirkulasi peminjaman secara konsisten[cite: 3, 5, 6].
-
-![Pengujian Transaksi Sukses](screenshots/acid-success-test.png)
+## Identitas Praktikan
+- **Nama**: Theresia Oktaviani Samosir
+- **NIM**: 12S24055
+- **Program Studi**: S1 Sistem Informasi
+- **Institut Teknologi Del**
 
 ---
 
-### 2. Audit Keamanan Sesi & Cookie (`HttpOnly`)
+## Deskripsi Tugas Praktikum
+Praktikum Minggu 06 (SIPUS-Del Tahap 2) berfokus pada pengembangan modul sirkulasi peminjaman, autentikasi pustakawan, pengelolaan sesi, serta penerapan mekanisme transaksi basis data ACID (*Atomicity, Consistency, Isolation, Durability*) dengan penguncian baris (*pessimistic locking*) menggunakan `lockForUpdate()`.
 
-Berdasarkan hasil audit pada browser DevTools (Tab **Application** -> **Cookies**)[cite: 2, 7, 8]:
-- **`laravel_session`**: Terkonfigurasi dengan atribut **`HttpOnly`** dan **`SameSite=Lax`** untuk mencegah ancaman serangan *Cross-Site Scripting* (XSS) dan *Cross-Site Request Forgery* (CSRF)[cite: 2, 3].
-- **`sipus_last_librarian`** & **`last_peminjam_nim`**: Cookie penanda pustakawan dan peminjam yang dikirim via `Cookie::queue()`[cite: 5, 6].
+**Cakupan Implementasi Fitur:**
+1. **Autentikasi Pustakawan & Keamanan Sesi**: Proteksi rute dengan middleware `auth`, regenerasi ID sesi (`$request->session()->regenerate()`), dan manajemen Cookie aman berAtribut `HttpOnly` serta `SameSite=Lax`[cite: 2, 3, 6, 7].
+2. **Sirkulasi Peminjaman (ACID Protected)**: Eksekusi transaksi peminjaman & pengembalian atomik via `DB::transaction()` dengan `lockForUpdate()` untuk mencegah *race condition* stok buku serta *rollback* otomatis jika stok habis.
+3. **Katalog & Analytics Perpustakaan**: Statistik ringkasan menggunakan Fluent Query Builder (`DB::table`) dan pemetaan agregasi relasi `withCount('peminjamans')`.
 
-![Audit Cookie HttpOnly di DevTools](screenshots/cookie-audit.png)
+---
+
+## Struktur Direktori Proyek
+
+```text
+ppw-2026-week5-12S24055/
+├── app/
+│   ├── Http/
+│   │   ├── Controllers/
+│   │   │   ├── AuthController.php        # Controller Login/Logout & Manajemen Sesi
+│   │   │   ├── BukuController.php        # Controller Katalog & Analytics DB::table
+│   │   │   └── SirkulasiController.php   # Controller Sirkulasi Transaksi ACID & lockForUpdate
+│   │   └── Middleware/
+│   └── Models/
+│       ├── Buku.php                      # Model Buku (BelongsTo Kategori, HasMany Peminjaman)
+│       ├── Kategori.php                  # Model Kategori Buku
+│       ├── Peminjaman.php                # Model Transaksi Sirkulasi
+│       └── User.php                      # Model User/Pustakawan
+├── database/
+│   ├── migrations/                       # Skema Tabel (users, bukus, kategoris, peminjamans)
+│   └── seeders/
+│       └── DatabaseSeeder.php            # Seeder Pustakawan & Sampel Data Uji Stok
+├── resources/
+│   └── views/
+│       ├── auth/
+│       │   └── login.blade.php           # Tampilan Form Login Pustakawan
+│       ├── bukus/
+│       │   └── index.blade.php           # Dashboard Katalog & Card Analytics
+│       └── sirkulasi/
+│           └── index.blade.php           # Form & Histori Sirkulasi Peminjaman
+├── routes/
+│   └── web.php                           # Definisi Rute & Proteksi Middleware Auth
+├── screenshots/
+│   ├── acid-rollback-test.png            # Bukti Penolakan Transaksi (Stok = 0)
+│   ├── acid-success-test.png             # Bukti Transaksi Peminjaman Sukses
+│   └── cookie-audit.png                  # Bukti Audit Cookie HttpOnly di DevTools
+└── README.md
